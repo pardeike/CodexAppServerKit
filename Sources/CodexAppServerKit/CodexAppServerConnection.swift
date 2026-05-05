@@ -1,4 +1,9 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 
 typealias CodexPendingContinuation = CheckedContinuation<CodexJSONValue, Error>
 
@@ -146,14 +151,25 @@ public actor CodexAppServerConnection {
         handleLine: @escaping @Sendable (String) async -> Void
     ) async {
         var buffer = Data()
+        let fileDescriptor = fileHandle.fileDescriptor
+        var chunk = [UInt8](repeating: 0, count: 4096)
 
         while !Task.isCancelled {
-            let data = fileHandle.readData(ofLength: 4096)
-            if data.isEmpty {
+            let byteCount = chunk.withUnsafeMutableBytes { rawBuffer in
+                read(fileDescriptor, rawBuffer.baseAddress, rawBuffer.count)
+            }
+
+            if byteCount == 0 {
+                break
+            }
+            if byteCount < 0 {
+                if errno == EINTR {
+                    continue
+                }
                 break
             }
 
-            for byte in data {
+            for byte in chunk.prefix(byteCount) {
                 if byte == 0x0A {
                     await emitLine(buffer, handleLine: handleLine)
                     buffer.removeAll(keepingCapacity: true)

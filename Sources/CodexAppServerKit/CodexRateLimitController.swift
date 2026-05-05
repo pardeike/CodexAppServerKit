@@ -51,7 +51,7 @@ public final class CodexRateLimitController: ObservableObject {
         do {
             try await client.start()
             startObservationIfNeeded()
-            try await refreshAccountAndLimits()
+            await refreshAccountAndLimits()
         } catch {
             fail(error)
         }
@@ -188,7 +188,7 @@ public final class CodexRateLimitController: ObservableObject {
 
         diagnosticTask = Task { [weak self] in
             for await line in client.diagnostics {
-                await self?.appendDiagnostic(line)
+                self?.appendDiagnostic(line)
             }
         }
     }
